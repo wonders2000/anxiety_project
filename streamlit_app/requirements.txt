@@ -9,7 +9,8 @@ keras
 numpy
 
 # Computer Vision
-opencv-python
+# Use headless OpenCV on server/cloud to avoid missing GUI libs (libGL)
+opencv-python-headless
 
 
 # Utilities
