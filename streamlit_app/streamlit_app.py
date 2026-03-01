@@ -162,274 +162,58 @@ elif selected == "Real-time Detection":
             frame_rate = st.slider("Frame Rate (FPS)", 1, 30, 15)
         
         with col3:
-            capture_interval = st.slider("Capture Interval (ms)", 50, 500, 100)
+            frame_rate = st.slider("Frame Rate (FPS)", 1, 30, 15)
         
-        # Permission notice
-        st.markdown("---")
-        st.info("📋 **Camera Access Required:** Please allow camera access when prompted by your browser or device.")
-        
-        # BROWSER CAMERA MODE - Works on Windows, Mac, Linux, iOS, Android
-        if camera_mode == "🎥 Browser Camera (Recommended)":
-            st.markdown("### Browser Camera Mode")
-            st.markdown("✅ Works on **Windows, Mac, Linux, iPhone, Android**")
+        if start_detection:
+            cap = cv2.VideoCapture(0)
             
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                capture_mode = st.radio(
-                    "Capture Mode:",
-                    ["📸 Single Frames", "🔄 Continuous (Auto)"],
-                    key="browser_mode"
-                )
-            
-            with col2:
-                if capture_mode == "🔄 Continuous (Auto)":
-                    auto_refresh = st.checkbox("Auto-refresh every capture", value=True)
-            
-            if capture_mode == "📸 Single Frames":
-                st.markdown("Click 'Take Photo' to capture and analyze a single frame.")
-                img_file = st.camera_input("📷 Camera Input", key="single_capture")
+            if not cap.isOpened():
+                st.error("❌ Cannot access webcam. Please check permissions.")
+            else:
+                st.success("✅ Webcam connected. Detecting anxiety levels...")
                 
-                if img_file is not None:
-                    file_bytes = np.asarray(bytearray(img_file.getvalue()), dtype=np.uint8)
-                    frame = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
-
+                detections_log = {"High_Anx": 0, "Low_Anx": 0, "No_Anx": 0}
+                frame_count = 0
+                
+                while start_detection:
+                    ret, frame = cap.read()
+                    
+                    if not ret:
+                        st.error("Failed to capture frame")
+                        break
+                    
                     # Process frame
-                    st.session_state.frame_count += 1
+                    frame_count += 1
                     result, conf = detector.detect(frame)
+                    
                     if result:
-                        st.session_state.detections_log[result] += 1
-
+                        detections_log[result] += 1
+                    
                     # Resize for display
                     frame = cv2.resize(frame, (640, 480))
-
+                    
                     # Display result on frame
                     if result:
                         color = (0, 255, 0) if result == "No_Anx" else (0, 165, 255) if result == "Low_Anx" else (0, 0, 255)
                         cv2.putText(frame, f"{result} ({conf:.2f})", (10, 40), 
                                   cv2.FONT_HERSHEY_SIMPLEX, 1.2, color, 2)
-
+                    
                     # Convert BGR to RGB for display
                     frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                     stframe.image(frame_rgb, use_column_width=True)
-
+                    
                     with result_placeholder.container():
-                        st.markdown(f"**Result:** {result if result else 'Processing...'}")
-                        if result:
-                            confidence_color = "🟢" if result == "No_Anx" else "🟡" if result == "Low_Anx" else "🔴"
-                            st.markdown(f"{confidence_color} **Confidence:** {conf:.2%}")
-
-                    with confidence_placeholder.container():
-                        st.bar_chart(st.session_state.detections_log)
-            
-            else:  # Continuous mode
-                st.markdown("📹 **Continuous Capture Mode** - Takes photos automatically")
-                col1, col2 = st.columns(2)
+                        st.markdown(f"**Latest Detection:** {result if result else 'Processing...'}")
+                        st.markdown(f"**Confidence:** {conf:.2%}" if result else "")
+                    
+                    # Update stats every 10 frames
+                    if frame_count % 10 == 0:
+                        with confidence_placeholder.container():
+                            st.bar_chart(detections_log)
                 
-                with col1:
-                    enable_continuous = st.checkbox("Enable Continuous Capture", value=False, key="enable_continuous")
-                
-                with col2:
-                    num_captures = st.number_input("Number of captures:", 1, 50, 5)
-                
-                if enable_continuous:
-                    st.markdown(f"Capturing {num_captures} frames...")
-                    
-                    for capture_idx in range(num_captures):
-                        img_file = st.camera_input(f"📷 Frame {capture_idx + 1}", key=f"continuous_capture_{capture_idx}")
-                        
-                        if img_file is not None:
-                            file_bytes = np.asarray(bytearray(img_file.getvalue()), dtype=np.uint8)
-                            frame = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
-
-                            st.session_state.frame_count += 1
-                            result, conf = detector.detect(frame)
-                            if result:
-                                st.session_state.detections_log[result] += 1
-
-                            frame = cv2.resize(frame, (640, 480))
-
-                            if result:
-                                color = (0, 255, 0) if result == "No_Anx" else (0, 165, 255) if result == "Low_Anx" else (0, 0, 255)
-                                cv2.putText(frame, f"{result} ({conf:.2f})", (10, 40), 
-                                          cv2.FONT_HERSHEY_SIMPLEX, 1.2, color, 2)
-
-                            frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                            stframe.image(frame_rgb, use_column_width=True)
-
-                            with result_placeholder.container():
-                                st.markdown(f"**Result:** {result if result else 'Processing...'}")
-                                if result:
-                                    confidence_color = "🟢" if result == "No_Anx" else "🟡" if result == "Low_Anx" else "🔴"
-                                    st.markdown(f"{confidence_color} **Confidence:** {conf:.2%}")
-
-                            with confidence_placeholder.container():
-                                st.bar_chart(st.session_state.detections_log)
-                            
-                            time.sleep(capture_interval / 1000.0)
-        
-        # WINDOWS/DESKTOP CAMERA MODE
-        elif camera_mode == "💻 Windows/Desktop Camera":
-            st.markdown("### Desktop Camera Mode")
-            st.markdown("✅ Native Windows/Linux camera capture using OpenCV")
-            
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                camera_index = st.number_input("Camera Index:", 0, 5, 0, help="Usually 0 for default camera, 1 for second camera, etc.")
-            
-            with col2:
-                enable_desktop = st.checkbox("Enable Desktop Camera", value=False, key="enable_desktop")
-            
-            if enable_desktop:
-                cap = cv2.VideoCapture(camera_index)
-                cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
-                cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
-                cap.set(cv2.CAP_PROP_FPS, frame_rate)
-
-                if not cap.isOpened():
-                    st.error(f"❌ Cannot access camera at index {camera_index}. Please check:")
-                    st.markdown("""
-                    - Camera is properly connected
-                    - Camera permissions are granted
-                    - Try Camera Index 1 or 2 if default doesn't work
-                    - Close other applications using the camera
-                    """)
-                else:
-                    st.success("✅ Camera connected. Detecting anxiety levels...")
-                    
-                    col_status, col_frames = st.columns([1, 1])
-                    with col_status:
-                        detection_mode = st.radio("Mode:", ["🔴 Live Stream", "📸 Snapshot"], key="desktop_mode")
-                    
-                    if detection_mode == "🔴 Live Stream":
-                        duration = st.slider("Duration (seconds):", 5, 60, 10)
-                        start_time = time.time()
-                        
-                        if st.button("🎬 Start Detection", key="start_desktop"):
-                            while (time.time() - start_time) < duration and enable_desktop:
-                                ret, frame = cap.read()
-
-                                if not ret:
-                                    st.error("Failed to capture frame")
-                                    break
-
-                                st.session_state.frame_count += 1
-                                result, conf = detector.detect(frame)
-
-                                if result:
-                                    st.session_state.detections_log[result] += 1
-
-                                frame = cv2.resize(frame, (640, 480))
-
-                                if result:
-                                    color = (0, 255, 0) if result == "No_Anx" else (0, 165, 255) if result == "Low_Anx" else (0, 0, 255)
-                                    cv2.putText(frame, f"{result} ({conf:.2f})", (10, 40), 
-                                              cv2.FONT_HERSHEY_SIMPLEX, 1.2, color, 2)
-
-                                frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                                stframe.image(frame_rgb, use_column_width=True)
-
-                                with result_placeholder.container():
-                                    st.markdown(f"**Result:** {result if result else 'Processing...'}")
-                                    if result:
-                                        confidence_color = "🟢" if result == "No_Anx" else "🟡" if result == "Low_Anx" else "🔴"
-                                        st.markdown(f"{confidence_color} **Confidence:** {conf:.2%}")
-
-                                if st.session_state.frame_count % 10 == 0:
-                                    with confidence_placeholder.container():
-                                        st.bar_chart(st.session_state.detections_log)
-
-                                time.sleep(1 / frame_rate)
-                    
-                    else:  # Snapshot mode
-                        if st.button("📷 Capture Snapshot", key="snapshot_desktop"):
-                            ret, frame = cap.read()
-                            if ret:
-                                st.session_state.frame_count += 1
-                                result, conf = detector.detect(frame)
-                                if result:
-                                    st.session_state.detections_log[result] += 1
-
-                                frame = cv2.resize(frame, (640, 480))
-
-                                if result:
-                                    color = (0, 255, 0) if result == "No_Anx" else (0, 165, 255) if result == "Low_Anx" else (0, 0, 255)
-                                    cv2.putText(frame, f"{result} ({conf:.2f})", (10, 40), 
-                                              cv2.FONT_HERSHEY_SIMPLEX, 1.2, color, 2)
-
-                                frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                                stframe.image(frame_rgb, use_column_width=True)
-
-                                with result_placeholder.container():
-                                    st.markdown(f"**Result:** {result if result else 'Processing...'}")
-                                    if result:
-                                        confidence_color = "🟢" if result == "No_Anx" else "🟡" if result == "Low_Anx" else "🔴"
-                                        st.markdown(f"{confidence_color} **Confidence:** {conf:.2%}")
-
-                                with confidence_placeholder.container():
-                                    st.bar_chart(st.session_state.detections_log)
-
                 cap.release()
-        
-        # SINGLE CAPTURE MODE
-        else:  # Single Capture
-            st.markdown("### Quick Capture")
-            st.markdown("Take a single photo and get instant anxiety detection")
-            
-            img_file = st.camera_input("📷 Take a Photo", key="quick_capture")
-            
-            if img_file is not None:
-                file_bytes = np.asarray(bytearray(img_file.getvalue()), dtype=np.uint8)
-                frame = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
-
-                # Process frame
-                st.session_state.frame_count += 1
-                result, conf = detector.detect(frame)
-                if result:
-                    st.session_state.detections_log[result] += 1
-
-                # Resize for display
-                frame = cv2.resize(frame, (640, 480))
-
-                # Display result on frame
-                if result:
-                    color = (0, 255, 0) if result == "No_Anx" else (0, 165, 255) if result == "Low_Anx" else (0, 0, 255)
-                    cv2.putText(frame, f"{result} ({conf:.2f})", (10, 40), 
-                              cv2.FONT_HERSHEY_SIMPLEX, 1.2, color, 2)
-
-                # Convert BGR to RGB for display
-                frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                stframe.image(frame_rgb, use_column_width=True)
-
-                with result_placeholder.container():
-                    if result:
-                        if result == "No_Anx":
-                            st.success(f"🟢 **{result}**")
-                        elif result == "Low_Anx":
-                            st.warning(f"🟡 **{result}**")
-                        else:
-                            st.error(f"🔴 **{result}**")
-                        st.markdown(f"**Confidence:** {conf:.2%}")
-                    else:
-                        st.markdown("Analyzing...")
-
-                with confidence_placeholder.container():
-                    st.bar_chart(st.session_state.detections_log)
-        
-        # Summary statistics
-        st.markdown("---")
-        st.markdown("### 📊 Session Summary")
-        col1, col2, col3, col4 = st.columns(4)
-        
-        with col1:
-            st.metric("Total Frames", st.session_state.frame_count)
-        with col2:
-            st.metric("High Anxiety", st.session_state.detections_log["High_Anx"])
-        with col3:
-            st.metric("Low Anxiety", st.session_state.detections_log["Low_Anx"])
-        with col4:
-            st.metric("No Anxiety", st.session_state.detections_log["No_Anx"])
+        else:
+            st.info("👈 Enable the webcam checkbox to start detection")
     
     except Exception as e:
         st.error("Failed loading model utilities — showing error details below.")
