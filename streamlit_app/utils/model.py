@@ -5,7 +5,7 @@ import os
 from pathlib import Path
 
 class AnxietyDetector:
-    def __init__(self, model_path="streamlit_app\anxiety_model.json", weights_path="streamlit_app\anxiety_model.h5"):
+    def __init__(self, model_path="streamlit_app/anxiety_model.json", weights_path="streamlit_app/anxiety_model.h5"):
         """
         Initialize the Anxiety Detector with pre-trained model
         
@@ -73,11 +73,12 @@ class AnxietyDetector:
                 print(f"✅ Model loaded from {model_path_real} and {weights_path_real}")
                 return model
 
-            # Fallback to model directory under base_dir
-            model_dir = base_dir / "model"
-            if model_dir.exists():
-                model_json_path = model_dir / "streamlit_app/anxiety_model.json"
-                model_h5_path = model_dir / "streamlit_app/anxiety_model.h5"
+            # Additional fallback locations: module dir and package root
+            fallback_pairs = [
+                (base_dir / "anxiety_model.json", base_dir / "anxiety_model.h5"),
+                (base_dir.parent / "anxiety_model.json", base_dir.parent / "anxiety_model.h5"),
+            ]
+            for model_json_path, model_h5_path in fallback_pairs:
                 if model_json_path.exists() and model_h5_path.exists():
                     with open(model_json_path, 'r') as json_file:
                         loaded_model_json = json_file.read()
