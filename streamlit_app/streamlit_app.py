@@ -151,53 +151,94 @@ elif selected == "Real-time Detection":
             frame_rate = st.slider("Frame Rate (FPS)", 1, 30, 15)
         
         if start_detection:
-            cap = cv2.VideoCapture(0)
-            
-            if not cap.isOpened():
-                st.error("❌ Cannot access webcam. Please check permissions.")
-            else:
-                st.success("✅ Webcam connected. Detecting anxiety levels...")
-                
-                detections_log = {"High_Anx": 0, "Low_Anx": 0, "No_Anx": 0}
-                frame_count = 0
-                
-                while start_detection:
-                    ret, frame = cap.read()
-                    
-                    if not ret:
-                        st.error("Failed to capture frame")
-                        break
-                    
+            # On hosted Streamlit (Streamlit Cloud) the server cannot access the client's webcam.
+            # Prefer using the browser camera via `st.camera_input`. Keep server-side `cv2.VideoCapture`
+            # as an option for local runs.
+            use_client_camera = st.checkbox("Use browser camera (recommended for hosted apps)", value=True)
+
+            detections_log = {"High_Anx": 0, "Low_Anx": 0, "No_Anx": 0}
+            frame_count = 0
+
+            if use_client_camera:
+                st.info("Using browser camera. Click 'Take photo' to capture a frame.")
+                img_file = st.camera_input("Camera")
+                if img_file is not None:
+                    file_bytes = np.asarray(bytearray(img_file.getvalue()), dtype=np.uint8)
+                    frame = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
+
                     # Process frame
                     frame_count += 1
                     result, conf = detector.detect(frame)
-                    
                     if result:
                         detections_log[result] += 1
-                    
+
                     # Resize for display
                     frame = cv2.resize(frame, (640, 480))
-                    
+
                     # Display result on frame
                     if result:
                         color = (0, 255, 0) if result == "No_Anx" else (0, 165, 255) if result == "Low_Anx" else (0, 0, 255)
                         cv2.putText(frame, f"{result} ({conf:.2f})", (10, 40), 
                                   cv2.FONT_HERSHEY_SIMPLEX, 1.2, color, 2)
-                    
+
                     # Convert BGR to RGB for display
                     frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                     stframe.image(frame_rgb, use_column_width=True)
-                    
+
                     with result_placeholder.container():
                         st.markdown(f"**Latest Detection:** {result if result else 'Processing...'}")
                         st.markdown(f"**Confidence:** {conf:.2%}" if result else "")
-                    
-                    # Update stats every 10 frames
+
+                    # Update stats every 10 captures
                     if frame_count % 10 == 0:
                         with confidence_placeholder.container():
                             st.bar_chart(detections_log)
-                
-                cap.release()
+
+            else:
+                cap = cv2.VideoCapture(0)
+
+                if not cap.isOpened():
+                    st.error("❌ Cannot access webcam. Please check permissions.")
+                else:
+                    st.success("✅ Webcam connected. Detecting anxiety levels...")
+
+                    while start_detection:
+                        ret, frame = cap.read()
+
+                        if not ret:
+                            st.error("Failed to capture frame")
+                            break
+
+                        # Process frame
+                        frame_count += 1
+                        result, conf = detector.detect(frame)
+
+                        if result:
+                            detections_log[result] += 1
+
+                        # Resize for display
+                        frame = cv2.resize(frame, (640, 480))
+
+                        # Display result on frame
+                        if result:
+                            color = (0, 255, 0) if result == "No_Anx" else (0, 165, 255) if result == "Low_Anx" else (0, 0, 255)
+                            cv2.putText(frame, f"{result} ({conf:.2f})", (10, 40), 
+                                      cv2.FONT_HERSHEY_SIMPLEX, 1.2, color, 2)
+
+                        # Convert BGR to RGB for display
+                        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                        stframe.image(frame_rgb, use_column_width=True)
+
+                        with result_placeholder.container():
+                            st.markdown(f"**Latest Detection:** {result if result else 'Processing...'}")
+                            st.markdown(f"**Confidence:** {conf:.2%}" if result else "")
+
+                        # Update stats every 10 frames
+                        if frame_count % 10 == 0:
+                            with confidence_placeholder.container():
+                                st.bar_chart(detections_log)
+
+                    cap.release()
         else:
             st.info("👈 Enable the webcam checkbox to start detection")
     
