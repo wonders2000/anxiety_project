@@ -115,10 +115,19 @@ elif selected == "Real-time Detection":
     st.markdown('<p class="title-main">🎥 Real-time Anxiety Detection</p>', unsafe_allow_html=True)
     
     try:
-        from utils.model import AnxietyDetector
         import cv2
         import numpy as np
-        
+        import tensorflow as tf
+        from utils.model import AnxietyDetector
+
+        st.write("debug: python packages:", "cv2=" + getattr(cv2, '__version__', 'n/a'),
+                 "numpy=" + np.__version__, "tensorflow=" + tf.__version__)
+        st.write("debug: deployed files:", os.listdir('.'))
+        if os.path.exists('anxiety_model.json'):
+            st.write('debug: anxiety_model.json found')
+        else:
+            st.write('debug: anxiety_model.json NOT found')
+
         detector = AnxietyDetector()
         
         st.markdown("### Webcam Detection")
@@ -198,8 +207,10 @@ elif selected == "Real-time Detection":
         else:
             st.info("👈 Enable the webcam checkbox to start detection")
     
-    except ImportError:
-        st.error("Model utilities not found. Please ensure all files are properly installed.")
+    except Exception as e:
+        st.error("Failed loading model utilities — showing error details below.")
+        st.exception(e)
+        raise
 
 # Statistics Page
 elif selected == "Statistics":
