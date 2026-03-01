@@ -44,8 +44,8 @@ with st.sidebar:
     
     selected = option_menu(
         menu_title=None,
-        options=["Home", "Real-time Detection", "Statistics", "About"],
-        icons=["house", "camera-video", "bar-chart", "info-circle"],
+        options=["Home", "Real-time Detection", "About"],
+        icons=["house", "camera-video", "info-circle"],
         menu_icon="cast",
         default_index=0,
         styles={
@@ -130,7 +130,7 @@ elif selected == "Real-time Detection":
         # Camera mode selection
         camera_mode = st.radio(
             "Select camera mode:",
-            ["🎥 Browser Camera (Recommended)", "💻 Windows/Desktop Camera", "📸 Single Capture"],
+            ["💻 Windows/Desktop Camera", "📸 Single Capture"],
             horizontal=True
         )
         
@@ -171,108 +171,8 @@ elif selected == "Real-time Detection":
         st.markdown("---")
         st.info("📋 **Camera Access Required:** Please allow camera access when prompted by your browser or device.")
         
-        # BROWSER CAMERA MODE - Works on Windows, Mac, Linux, iOS, Android
-        if camera_mode == "🎥 Browser Camera (Recommended)":
-            st.markdown("### Browser Camera Mode")
-            st.markdown("✅ Works on **Windows, Mac, Linux, iPhone, Android**")
-            
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                capture_mode = st.radio(
-                    "Capture Mode:",
-                    ["📸 Single Frames", "🔄 Continuous (Auto)"],
-                    key="browser_mode"
-                )
-            
-            with col2:
-                if capture_mode == "🔄 Continuous (Auto)":
-                    auto_refresh = st.checkbox("Auto-refresh every capture", value=True)
-            
-            if capture_mode == "📸 Single Frames":
-                st.markdown("Click 'Take Photo' to capture and analyze a single frame.")
-                img_file = st.camera_input("📷 Camera Input", key="single_capture")
-                
-                if img_file is not None:
-                    file_bytes = np.asarray(bytearray(img_file.getvalue()), dtype=np.uint8)
-                    frame = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
-
-                    # Process frame
-                    st.session_state.frame_count += 1
-                    result, conf = detector.detect(frame)
-                    if result:
-                        st.session_state.detections_log[result] += 1
-
-                    # Resize for display
-                    frame = cv2.resize(frame, (640, 480))
-
-                    # Display result on frame
-                    if result:
-                        color = (0, 255, 0) if result == "No_Anx" else (0, 165, 255) if result == "Low_Anx" else (0, 0, 255)
-                        cv2.putText(frame, f"{result} ({conf:.2f})", (10, 40), 
-                                  cv2.FONT_HERSHEY_SIMPLEX, 1.2, color, 2)
-
-                    # Convert BGR to RGB for display
-                    frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                    stframe.image(frame_rgb, use_column_width=True)
-
-                    with result_placeholder.container():
-                        st.markdown(f"**Result:** {result if result else 'Processing...'}")
-                        if result:
-                            confidence_color = "🟢" if result == "No_Anx" else "🟡" if result == "Low_Anx" else "🔴"
-                            st.markdown(f"{confidence_color} **Confidence:** {conf:.2%}")
-
-                    with confidence_placeholder.container():
-                        st.bar_chart(st.session_state.detections_log)
-            
-            else:  # Continuous mode
-                st.markdown("📹 **Continuous Capture Mode** - Takes photos automatically")
-                col1, col2 = st.columns(2)
-                
-                with col1:
-                    enable_continuous = st.checkbox("Enable Continuous Capture", value=False, key="enable_continuous")
-                
-                with col2:
-                    num_captures = st.number_input("Number of captures:", 1, 50, 5)
-                
-                if enable_continuous:
-                    st.markdown(f"Capturing {num_captures} frames...")
-                    
-                    for capture_idx in range(num_captures):
-                        img_file = st.camera_input(f"📷 Frame {capture_idx + 1}", key=f"continuous_capture_{capture_idx}")
-                        
-                        if img_file is not None:
-                            file_bytes = np.asarray(bytearray(img_file.getvalue()), dtype=np.uint8)
-                            frame = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
-
-                            st.session_state.frame_count += 1
-                            result, conf = detector.detect(frame)
-                            if result:
-                                st.session_state.detections_log[result] += 1
-
-                            frame = cv2.resize(frame, (640, 480))
-
-                            if result:
-                                color = (0, 255, 0) if result == "No_Anx" else (0, 165, 255) if result == "Low_Anx" else (0, 0, 255)
-                                cv2.putText(frame, f"{result} ({conf:.2f})", (10, 40), 
-                                          cv2.FONT_HERSHEY_SIMPLEX, 1.2, color, 2)
-
-                            frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                            stframe.image(frame_rgb, use_column_width=True)
-
-                            with result_placeholder.container():
-                                st.markdown(f"**Result:** {result if result else 'Processing...'}")
-                                if result:
-                                    confidence_color = "🟢" if result == "No_Anx" else "🟡" if result == "Low_Anx" else "🔴"
-                                    st.markdown(f"{confidence_color} **Confidence:** {conf:.2%}")
-
-                            with confidence_placeholder.container():
-                                st.bar_chart(st.session_state.detections_log)
-                            
-                            time.sleep(capture_interval / 1000.0)
-        
         # WINDOWS/DESKTOP CAMERA MODE
-        elif camera_mode == "💻 Windows/Desktop Camera":
+        if camera_mode == "💻 Windows/Desktop Camera":
             st.markdown("### Desktop Camera Mode")
             st.markdown("✅ Native Windows/Linux camera capture using OpenCV")
             
@@ -376,8 +276,8 @@ elif selected == "Real-time Detection":
                 cap.release()
         
         # SINGLE CAPTURE MODE
-        else:  # Single Capture
-            st.markdown("### Quick Capture")
+        elif camera_mode == "📸 Single Capture":
+            st.markdown("### 📸 Quick Capture")
             st.markdown("Take a single photo and get instant anxiety detection")
             
             img_file = st.camera_input("📷 Take a Photo", key="quick_capture")
@@ -439,27 +339,6 @@ elif selected == "Real-time Detection":
         st.error("Failed loading model utilities — showing error details below.")
         st.exception(e)
         raise
-
-# Statistics Page
-elif selected == "Statistics":
-    st.markdown('<p class="title-main">📊 Statistics & Analytics</p>', unsafe_allow_html=True)
-    
-    st.markdown("### Detection History")
-    
-    col1, col2, col3, col4 = st.columns(4)
-    
-    with col1:
-        st.metric("Total Detections", "0")
-    with col2:
-        st.metric("High Anxiety", "0")
-    with col3:
-        st.metric("Low Anxiety", "0")
-    with col4:
-        st.metric("No Anxiety", "0")
-    
-    st.markdown("---")
-    
-    st.info("📝 Statistics will be populated as you run real-time detections.")
 
 # About Page
 elif selected == "About":
