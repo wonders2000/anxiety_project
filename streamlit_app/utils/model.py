@@ -9,6 +9,11 @@ class AnxietyDetector:
         """
         Initialize the Anxiety Detector with pre-trained model
         
+        Paths are resolved in the following order:
+        1. exact path as given
+        2. relative to the current working directory
+        3. relative to this module's directory (so packages can ship models)
+        
         Parameters:
         -----------
         model_path : str
@@ -17,17 +22,41 @@ class AnxietyDetector:
             Path to model weights HDF5 file
         """
         self.anxiety_dict = {0: "High_Anx", 1: "Low_Anx", 2: "No_Anx"}
-        self.model = self._load_model(model_path, weights_path)
+        # resolve potential relative paths
+        base_dir = Path(__file__).parent
+        self.model = self._load_model(model_path, weights_path, base_dir)
         self.face_cascade = cv2.CascadeClassifier(
             cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
         )
     
-    def _load_model(self, model_path, weights_path):
-        """Load model from JSON and weights from HDF5"""
+    def _load_model(self, model_path, weights_path, base_dir: Path):
+        """Load model from JSON and weights from HDF5
+
+        base_dir is the directory of this module; it's used to resolve paths
+        when the caller uses a relative name but the files live alongside the
+        package (e.g. streamlit_app/anxiety_model.json).
+        """
+        # helper to try candidate paths in order
+        def candidates(path_str):
+            p = Path(path_str)
+            yield p
+            yield Path(os.getcwd()) / path_str
+            yield base_dir / path_str
+        
         try:
-            # Try to load from specified paths first
-            if os.path.exists(model_path) and os.path.exists(weights_path):
-                with open(model_path, 'r') as json_file:
+            # search for valid pair
+            found = False
+            for mp in candidates(model_path):
+                for wp in candidates(weights_path):
+                    if mp.exists() and wp.exists():
+                        model_path_real = mp
+                        weights_path_real = wp
+                        found = True
+                        break
+                if found:
+                    break
+            if found:
+                with open(model_path_real, 'r') as json_file:
                     loaded_model_json = json_file.read()
                 model = tf.keras.models.model_from_json(
                     loaded_model_json,
@@ -35,12 +64,12 @@ class AnxietyDetector:
                         'Sequential': tf.keras.models.Sequential
                     }
                 )
-                model.load_weights(weights_path)
-                print(f"✅ Model loaded from {model_path} and {weights_path}")
+                model.load_weights(weights_path_real)
+                print(f"✅ Model loaded from {model_path_real} and {weights_path_real}")
                 return model
-            
-            # Fallback to model directory
-            model_dir = Path("model")
+
+            # Fallback to model directory under base_dir
+            model_dir = base_dir / "model"
             if model_dir.exists():
                 model_json_path = model_dir / "anxiety_model.json"
                 model_h5_path = model_dir / "anxiety_model.h5"
@@ -56,9 +85,8 @@ class AnxietyDetector:
                     model.load_weights(model_h5_path)
                     print(f"✅ Model loaded from {model_json_path} and {model_h5_path}")
                     return model
-            
+
             raise FileNotFoundError(f"Model files not found at {model_path} or model/")
-        
         except Exception as e:
             print(f"❌ Error loading model: {str(e)}")
             raise
