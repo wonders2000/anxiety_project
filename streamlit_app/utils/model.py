@@ -5,7 +5,7 @@ import os
 from pathlib import Path
 
 class AnxietyDetector:
-    def __init__(self, model_path="anxiety_model.json", weights_path="anxiety_model.h5"):
+    def __init__(self, model_path="streamlit_app\anxiety_model.json", weights_path="streamlit_app\anxiety_model.h5"):
         """
         Initialize the Anxiety Detector with pre-trained model
         
@@ -39,9 +39,14 @@ class AnxietyDetector:
         # helper to try candidate paths in order
         def candidates(path_str):
             p = Path(path_str)
+            # direct
             yield p
+            # cwd relative
             yield Path(os.getcwd()) / path_str
+            # module directory (utils/)
             yield base_dir / path_str
+            # parent of module (streamlit_app/)
+            yield base_dir.parent / path_str
         
         try:
             # search for valid pair
@@ -71,8 +76,8 @@ class AnxietyDetector:
             # Fallback to model directory under base_dir
             model_dir = base_dir / "model"
             if model_dir.exists():
-                model_json_path = model_dir / "anxiety_model.json"
-                model_h5_path = model_dir / "anxiety_model.h5"
+                model_json_path = model_dir / "streamlit_app/anxiety_model.json"
+                model_h5_path = model_dir / "streamlit_app/anxiety_model.h5"
                 if model_json_path.exists() and model_h5_path.exists():
                     with open(model_json_path, 'r') as json_file:
                         loaded_model_json = json_file.read()

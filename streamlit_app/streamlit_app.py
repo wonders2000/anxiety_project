@@ -122,11 +122,17 @@ elif selected == "Real-time Detection":
 
         st.write("debug: python packages:", "cv2=" + getattr(cv2, '__version__', 'n/a'),
                  "numpy=" + np.__version__, "tensorflow=" + tf.__version__)
-        st.write("debug: deployed files:", os.listdir('.'))
+        st.write("debug: deployed files (root):", os.listdir('.'))
+        # show nested folder contents as well
+        if os.path.isdir('streamlit_app'):
+            st.write("debug: deployed files (streamlit_app):", os.listdir('streamlit_app'))
+        st.write("debug: current working directory", os.getcwd())
         if os.path.exists('anxiety_model.json'):
-            st.write('debug: anxiety_model.json found')
+            st.write('debug: anxiety_model.json found at cwd')
+        elif os.path.exists('streamlit_app/anxiety_model.json'):
+            st.write('debug: anxiety_model.json found in streamlit_app subfolder')
         else:
-            st.write('debug: anxiety_model.json NOT found')
+            st.write('debug: anxiety_model.json NOT found anywhere looked')
 
         detector = AnxietyDetector()
         
