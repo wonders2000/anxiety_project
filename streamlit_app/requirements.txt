@@ -1,0 +1,23 @@
+# Core Dependencies
+streamlit
+streamlit-option-menu
+streamlit-webrtc
+
+# Deep Learning
+tensorflow
+keras
+numpy
+
+# Computer Vision
+opencv-python
+
+
+# Utilities
+python-dotenv
+Pillow
+pandas
+matplotlib
+# scikit-learn
+
+# Development
+streamlit-extras
