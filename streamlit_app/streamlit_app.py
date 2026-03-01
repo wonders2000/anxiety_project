@@ -3,6 +3,7 @@ from streamlit_option_menu import option_menu
 import base64
 import cv2
 import numpy as np
+from pathlib import Path
 from utils.model import AnxietyDetector
 
 # ---------------- PAGE CONFIG ---------------- #
@@ -14,8 +15,15 @@ st.set_page_config(
 )
 
 # ---------------- BACKGROUND IMAGE ---------------- #
-def set_bg(image_file):
-    with open(image_file, "rb") as img:
+def set_bg():
+    current_dir = Path(__file__).parent
+    image_path = current_dir / "assets" / "img1_back.jpg"
+
+    if not image_path.exists():
+        st.error(f"Background image not found at: {image_path}")
+        return
+
+    with open(image_path, "rb") as img:
         encoded = base64.b64encode(img.read()).decode()
 
     st.markdown(
@@ -32,7 +40,7 @@ def set_bg(image_file):
         unsafe_allow_html=True
     )
 
-set_bg("assets/img1_back.jpg")
+set_bg()
 
 st.markdown(
     f"""
