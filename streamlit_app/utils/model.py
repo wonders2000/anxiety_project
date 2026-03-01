@@ -87,7 +87,7 @@ class AnxietyDetector:
                             'Sequential': tf.keras.models.Sequential
                         }
                     )
-                    model.load_weights(model_h5_path)
+                    model.load_weights(str(model_h5_path))
                     print(f"✅ Model loaded from {model_json_path} and {model_h5_path}")
                     return model
 
